@@ -417,19 +417,20 @@ async fn fraud_proof_verification_in_tx_pool_should_work() {
 		pallet_executor::Call::submit_fraud_proof { fraud_proof: valid_fraud_proof.clone() }.into(),
 	);
 
-	assert!(
-		ferdie
-			.transaction_pool
-			.pool()
-			.submit_one(
-				&BlockId::Hash(ferdie.client.info().best_hash),
-				TransactionSource::External,
-				tx.into(),
-			)
-			.await
-			.is_ok(),
-		"Submit a valid fraud proof successfully"
-	);
+	let expected_tx_hash = tx.using_encoded(BlakeTwo256::hash);
+	match ferdie
+		.transaction_pool
+		.pool()
+		.submit_one(
+			&BlockId::Hash(ferdie.client.info().best_hash),
+			TransactionSource::External,
+			tx.into(),
+		)
+		.await
+	{
+		Ok(tx_hash) => assert_eq!(tx_hash, expected_tx_hash),
+		Err(e) => panic!("Error at submitting a valid fraud proof: {e:?}"),
+	}
 
 	let invalid_fraud_proof = FraudProof { post_state_root: Hash::random(), ..valid_fraud_proof };
 
